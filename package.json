@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "build": "expo-module prepare && tsc -p tsconfig.plugin.json",
-    "clean": "expo-module clean && rm -rf src/types.js && rm -rf app.plugin.js",
+    "clean": "expo-module clean && rm -rf app.plugin.js",
     "reset": "rm -rf package-lock.json node_modules"
   },
   "keywords": [

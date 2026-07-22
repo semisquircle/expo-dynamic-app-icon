@@ -3,7 +3,7 @@ import { ConfigPlugin, withDangerousMod, withXcodeProject, withAndroidManifest, 
 import { generateImageAsync } from "@expo/image-utils";
 import * as fs from "fs";
 import * as path from "path";
-import type { AssetImage, PluginProps, IconDimensions, IconVariant, IconSet, IosIconSet, IconSetProps } from "./src/types";
+import type { AssetImage, PluginProps, IconDimensions, IconVariant, IconSet, IosIconSet, IconSetProps } from "./build/types";
 
 const moduleRoot = path.join(__dirname, "..", "..");
 
