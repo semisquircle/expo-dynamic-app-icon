@@ -1,13 +1,29 @@
 import type { ExpoConfig } from "@expo/config";
-import { ConfigPlugin, withDangerousMod, withXcodeProject, withAndroidManifest, AndroidConfig } from "@expo/config-plugins";
+import {
+	ConfigPlugin,
+	withDangerousMod,
+	withXcodeProject,
+	withAndroidManifest,
+	AndroidConfig,
+} from "@expo/config-plugins";
 import { generateImageAsync } from "@expo/image-utils";
 import * as fs from "fs";
 import * as path from "path";
-import type { AssetImage, PluginProps, IconDimensions, IconVariant, IconSet, IosIconSet, IconSetProps } from "./build/types";
+import type {
+	AssetImage,
+	PluginProps,
+	IconDimensions,
+	IconVariant,
+	IconSet,
+	IosIconSet,
+	IconSetProps,
+} from "./build/types";
+
 
 const moduleRoot = path.join(__dirname, "..", "..");
 
-const { getMainApplicationOrThrow, getMainActivityOrThrow } = AndroidConfig.Manifest;
+const { getMainApplicationOrThrow, getMainActivityOrThrow } =
+	AndroidConfig.Manifest;
 
 const ANDROID_FOLDER_PATH = ["app", "src", "main", "res"];
 const ANDROID_FOLDER_NAMES = [
@@ -27,7 +43,10 @@ const IOS_ICON_DIMENSIONS: IconDimensions[] = [
 	{ scale: 1, size: 1024 },
 ];
 
-const withDynamicIcon: ConfigPlugin<string[] | IconSet | void> = (config, props = {}) => {
+const withDynamicIcon: ConfigPlugin<string[] | IconSet | void> = (
+	config,
+	props = {},
+) => {
 	const icons = resolveIcons(props);
 	const dimensions = resolveIconDimensions(config);
 
@@ -71,7 +90,7 @@ const withGenerateTypes = (config: ExpoConfig, props: { icons: IconSet }) => {
 	}
 
 	return config;
-}
+};
 
 
 //* Android
@@ -79,17 +98,25 @@ const getSafeResourceName = (name: string) => {
 	return name.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase();
 };
 
-const validateImagePath = (projectRoot: string, imagePath: string, iconKey: string, platform: string): string => {
+const validateImagePath = (
+	projectRoot: string,
+	imagePath: string,
+	iconKey: string,
+	platform: string,
+): string => {
 	const resolvedPath = path.resolve(projectRoot, imagePath);
 	if (!fs.existsSync(resolvedPath)) {
 		throw new Error(
-			`[expo-dynamic-app-icon] Icon "${iconKey}" references image "${imagePath}" for ${platform} which does not exist. Resolved path: ${resolvedPath}`
+			`[expo-dynamic-app-icon] Icon "${iconKey}" references image "${imagePath}" for ${platform} which does not exist. Resolved path: ${resolvedPath}`,
 		);
 	}
 	return resolvedPath;
-}
+};
 
-const withIconAndroidManifest: ConfigPlugin<PluginProps> = (config, { icons }) => {
+const withIconAndroidManifest: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons },
+) => {
 	const appName = config.name;
 	return withAndroidManifest(config, (config) => {
 		const mainApplication: any = getMainApplicationOrThrow(config.modResults);
@@ -124,7 +151,11 @@ const withIconAndroidManifest: ConfigPlugin<PluginProps> = (config, { icons }) =
 							"android:enabled": "false",
 							"android:exported": "true",
 							"android:icon": iconResourceName,
-							"android:label": mainActivity.$["android:label"] || mainApplication.$["android:label"] || appName || "",
+							"android:label":
+								mainActivity.$["android:label"] ||
+								mainApplication.$["android:label"] ||
+								appName ||
+								"",
 							"android:targetActivity": ".MainActivity",
 							"android:roundIcon": roundIconResourceName,
 						},
@@ -145,16 +176,16 @@ const withIconAndroidManifest: ConfigPlugin<PluginProps> = (config, { icons }) =
 					};
 				}),
 			];
-		}
+		};
 
 		const removeIconActivityAlias = (currentActivityAliases: any[]): any[] => {
 			return currentActivityAliases.filter(
 				(activityAlias) =>
 					!(activityAlias.$["android:name"] as string).startsWith(
-						iconNamePrefix
-					)
+						iconNamePrefix,
+					),
 			);
-		}
+		};
 
 		let activityAliases = mainApplication["activity-alias"] || [];
 		activityAliases = removeIconActivityAlias(activityAliases);
@@ -165,19 +196,22 @@ const withIconAndroidManifest: ConfigPlugin<PluginProps> = (config, { icons }) =
 	});
 };
 
-const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => {
+const withIconAndroidImages: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons },
+) => {
 	return withDangerousMod(config, [
 		"android",
 		async (config) => {
 			const androidResPath = path.join(
 				config.modRequest.platformProjectRoot,
-				...ANDROID_FOLDER_PATH
+				...ANDROID_FOLDER_PATH,
 			);
 
 			const drawableDirPath = path.join(androidResPath, "drawable");
 			const mipmapAnyDpiV26DirPath = path.join(
 				androidResPath,
-				"mipmap-anydpi-v26"
+				"mipmap-anydpi-v26",
 			);
 
 			// Ensure directories exist
@@ -199,7 +233,7 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 							const isPluginGenerated = Object.keys(icons).some(
 								(iconKey) =>
 									file.startsWith(`${getSafeResourceName(iconKey)}.png`) ||
-									file.startsWith(`${getSafeResourceName(iconKey)}_round.png`)
+									file.startsWith(`${getSafeResourceName(iconKey)}_round.png`),
 							);
 							if (isPluginGenerated) {
 								await fs.promises
@@ -218,8 +252,8 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 					if (
 						Object.keys(icons).some((iconKey) =>
 							file.startsWith(
-								`ic_launcher_adaptive_${getSafeResourceName(iconKey)}_`
-							)
+								`ic_launcher_adaptive_${getSafeResourceName(iconKey)}_`,
+							),
 						)
 					) {
 						await fs.promises
@@ -234,8 +268,8 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 					if (
 						Object.keys(icons).some((iconKey) =>
 							file.startsWith(
-								`ic_launcher_adaptive_${getSafeResourceName(iconKey)}.xml`
-							)
+								`ic_launcher_adaptive_${getSafeResourceName(iconKey)}.xml`,
+							),
 						)
 					) {
 						await fs.promises
@@ -246,7 +280,10 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 			};
 
 			const addIconRes = async () => {
-				for (const [iconConfigName, iconProps] of Object.entries(icons) as [string, IconSetProps][]) {
+				for (const [iconConfigName, iconProps] of Object.entries(icons) as [
+					string,
+					IconSetProps,
+				][]) {
 					const androidConfig = iconProps.android;
 
 					if (typeof androidConfig === "object" && androidConfig !== null) {
@@ -258,14 +295,19 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 						const adaptiveIconBaseName = `ic_launcher_adaptive_${safeIconKey}`;
 
 						// Foreground Image
-						validateImagePath(config.modRequest.projectRoot, androidConfig.foregroundImage, iconConfigName, "android");
+						validateImagePath(
+							config.modRequest.projectRoot,
+							androidConfig.foregroundImage,
+							iconConfigName,
+							"android",
+						);
 						const foregroundImageSrc = path.resolve(
 							config.modRequest.projectRoot,
-							androidConfig.foregroundImage
+							androidConfig.foregroundImage,
 						);
 						const foregroundImageDest = path.join(
 							drawableDirPath,
-							`${foregroundBaseName}.png`
+							`${foregroundBaseName}.png`,
 						);
 						const { source: foregroundSource } = await generateImageAsync(
 							{
@@ -279,37 +321,45 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 								width: 432, // Standard dimension for foreground assets
 								height: 432,
 								resizeMode: "contain", // Preserve aspect ratio within the bounds
-							}
+							},
 						);
 						await fs.promises.writeFile(foregroundImageDest, foregroundSource);
 
 						// Background Color Drawable
-						if (androidConfig.backgroundColor && androidConfig.backgroundImage === undefined) {
+						if (
+							androidConfig.backgroundColor &&
+							androidConfig.backgroundImage === undefined
+						) {
 							if (!/^#[0-9A-Fa-f]{3,8}$/.test(androidConfig.backgroundColor)) {
 								throw new Error(
-									`[expo-dynamic-app-icon] Icon "${iconConfigName}" has invalid backgroundColor "${androidConfig.backgroundColor}". Must be a hex color (e.g., "#FFFFFF" or "#FF000000").`
+									`[expo-dynamic-app-icon] Icon "${iconConfigName}" has invalid backgroundColor "${androidConfig.backgroundColor}". Must be a hex color (e.g., "#FFFFFF" or "#FF000000").`,
 								);
 							}
 							const backgroundColorXml = `<shape xmlns:android="http://schemas.android.com/apk/res/android">\n    <solid android:color="${androidConfig.backgroundColor}" />\n</shape>`;
 							const backgroundDrawablePath = path.join(
 								drawableDirPath,
-								`${backgroundBaseName}.xml`
+								`${backgroundBaseName}.xml`,
 							);
 							await fs.promises.writeFile(
 								backgroundDrawablePath,
-								backgroundColorXml
+								backgroundColorXml,
 							);
 						}
 						// Background Image
 						else if (androidConfig.backgroundImage) {
-							validateImagePath(config.modRequest.projectRoot, androidConfig.backgroundImage, iconConfigName, "android");
+							validateImagePath(
+								config.modRequest.projectRoot,
+								androidConfig.backgroundImage,
+								iconConfigName,
+								"android",
+							);
 							const backgroundImageSrc = path.resolve(
 								config.modRequest.projectRoot,
-								androidConfig.backgroundImage
+								androidConfig.backgroundImage,
 							);
 							const backgroundImageDest = path.join(
 								drawableDirPath,
-								`${backgroundBaseName}.png`
+								`${backgroundBaseName}.png`,
 							);
 							const { source: backgroundSource } = await generateImageAsync(
 								{
@@ -323,21 +373,29 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 									width: 432, // Standard dimension for background assets
 									height: 432,
 									resizeMode: "contain", // Preserve aspect ratio within the bounds
-								}
+								},
 							);
-							await fs.promises.writeFile(backgroundImageDest, backgroundSource);
+							await fs.promises.writeFile(
+								backgroundImageDest,
+								backgroundSource,
+							);
 						}
 
 						// Monochrome Image
 						if (androidConfig.monochromeImage) {
-							validateImagePath(config.modRequest.projectRoot, androidConfig.monochromeImage, iconConfigName, "android");
+							validateImagePath(
+								config.modRequest.projectRoot,
+								androidConfig.monochromeImage,
+								iconConfigName,
+								"android",
+							);
 							const monochromeImageSrc = path.resolve(
 								config.modRequest.projectRoot,
-								androidConfig.monochromeImage
+								androidConfig.monochromeImage,
 							);
 							const monochromeImageDest = path.join(
 								drawableDirPath,
-								`${monochromeBaseName}.png`
+								`${monochromeBaseName}.png`,
 							);
 							const { source: monochromeSource } = await generateImageAsync(
 								{
@@ -351,26 +409,34 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 									width: 432, // Standard dimension for monochrome assets
 									height: 432,
 									resizeMode: "contain", // Preserve aspect ratio within the bounds
-								}
+								},
 							);
-							await fs.promises.writeFile(monochromeImageDest, monochromeSource);
+							await fs.promises.writeFile(
+								monochromeImageDest,
+								monochromeSource,
+							);
 						}
 
 						// Adaptive Icon XML
-						const adaptiveIconXml = `<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@drawable/${backgroundBaseName}" />\n    <foreground android:drawable="@drawable/${foregroundBaseName}" />${(androidConfig.monochromeImage) && `\n    <monochrome android:drawable="@drawable/${monochromeBaseName}" />`}\n</adaptive-icon>`;
+						const adaptiveIconXml = `<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@drawable/${backgroundBaseName}" />\n    <foreground android:drawable="@drawable/${foregroundBaseName}" />${androidConfig.monochromeImage && `\n    <monochrome android:drawable="@drawable/${monochromeBaseName}" />`}\n</adaptive-icon>`;
 						const adaptiveIconXmlPath = path.join(
 							mipmapAnyDpiV26DirPath,
-							`${adaptiveIconBaseName}.xml`
+							`${adaptiveIconBaseName}.xml`,
 						);
 						await fs.promises.writeFile(adaptiveIconXmlPath, adaptiveIconXml);
 					} else if (typeof androidConfig === "string") {
 						// Handle Legacy Icons (existing logic)
-						validateImagePath(config.modRequest.projectRoot, androidConfig, iconConfigName, "android");
+						validateImagePath(
+							config.modRequest.projectRoot,
+							androidConfig,
+							iconConfigName,
+							"android",
+						);
 						for (let i = 0; ANDROID_FOLDER_NAMES.length > i; i += 1) {
 							const size = ANDROID_SIZES[i];
 							const outputPath = path.join(
 								androidResPath,
-								ANDROID_FOLDER_NAMES[i]
+								ANDROID_FOLDER_NAMES[i],
 							);
 							const safeIconKey = getSafeResourceName(iconConfigName); // Use the same safe name
 
@@ -383,17 +449,20 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 								},
 								{
 									name: fileNameSquare,
-									src: path.resolve(config.modRequest.projectRoot, androidConfig),
+									src: path.resolve(
+										config.modRequest.projectRoot,
+										androidConfig,
+									),
 									removeTransparency: true,
 									backgroundColor: "#ffffff",
 									resizeMode: "cover",
 									width: size,
 									height: size,
-								}
+								},
 							);
 							await fs.promises.writeFile(
 								path.join(outputPath, fileNameSquare),
-								sourceSquare
+								sourceSquare,
 							);
 
 							// Round ones
@@ -405,18 +474,21 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 								},
 								{
 									name: fileNameRound,
-									src: path.resolve(config.modRequest.projectRoot, androidConfig),
+									src: path.resolve(
+										config.modRequest.projectRoot,
+										androidConfig,
+									),
 									removeTransparency: true,
 									backgroundColor: "#ffffff",
 									resizeMode: "cover",
 									width: size,
 									height: size,
 									borderRadius: size / 2,
-								}
+								},
 							);
 							await fs.promises.writeFile(
 								path.join(outputPath, fileNameRound),
-								sourceRound
+								sourceRound,
 							);
 						}
 					}
@@ -433,7 +505,10 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 
 
 //* iOS
-const withIconXcodeProject: ConfigPlugin<PluginProps> = (config, { icons, dimensions }) => {
+const withIconXcodeProject: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons, dimensions },
+) => {
 	return withXcodeProject(config, async (config: any) => {
 		const project = config.modResults;
 
@@ -470,7 +545,7 @@ const withIconXcodeProject: ConfigPlugin<PluginProps> = (config, { icons, dimens
 				async (key) => {
 					const iconName = getIconName(key);
 					names.push(iconName);
-				}
+				},
 			);
 			buildSettings["ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES"] =
 				JSON.stringify(names.join(" "));
@@ -486,13 +561,16 @@ const withIconXcodeProject: ConfigPlugin<PluginProps> = (config, { icons, dimens
 	});
 };
 
-const withIconImages: ConfigPlugin<PluginProps> = (config, { icons, dimensions }: any) => {
+const withIconImages: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons, dimensions }: any,
+) => {
 	return withDangerousMod(config, [
 		"ios",
 		async (config: any) => {
 			const iosRoot = path.join(
 				config.modRequest.platformProjectRoot,
-				config.modRequest.projectName!
+				config.modRequest.projectName!,
 			);
 
 			await iterateIconsAndDimensionsAsync(
@@ -503,7 +581,7 @@ const withIconImages: ConfigPlugin<PluginProps> = (config, { icons, dimensions }
 					// Clean the old AppIcon-*.appiconset
 					const iconsetPath = path.join(
 						IOS_ASSETS_FOLDER_NAME,
-						`${getIconName(key)}.appiconset`
+						`${getIconName(key)}.appiconset`,
 					);
 					const outputIconsetPath = path.join(iosRoot, iconsetPath);
 					await fs.promises
@@ -518,22 +596,28 @@ const withIconImages: ConfigPlugin<PluginProps> = (config, { icons, dimensions }
 					const contents = generateIconsetContents(icon.ios, key, dimension);
 					const outputContentsPath = path.join(
 						outputIconsetPath,
-						"Contents.json"
+						"Contents.json",
 					);
 					await fs.promises.writeFile(
 						outputContentsPath,
-						JSON.stringify(contents, null, 2)
+						JSON.stringify(contents, null, 2),
 					);
 
-					const images = typeof icon.ios === "string" ? { light: icon.ios } : icon.ios;
+					const images =
+						typeof icon.ios === "string" ? { light: icon.ios } : icon.ios;
 
 					// Generate the assets for each variant
 					for (const [variant, icon] of Object.entries(images)) {
-						validateImagePath(config.modRequest.projectRoot, icon, `${key}/${variant}`, "ios");
+						validateImagePath(
+							config.modRequest.projectRoot,
+							icon,
+							`${key}/${variant}`,
+							"ios",
+						);
 						const iconFileName = getIconAssetFileName(
 							key,
 							variant as IconVariant,
-							dimension
+							dimension,
 						);
 						const isTransparent = variant === "dark";
 						const { source } = await generateImageAsync(
@@ -549,13 +633,13 @@ const withIconImages: ConfigPlugin<PluginProps> = (config, { icons, dimensions }
 								resizeMode: "cover",
 								width: dimension.width,
 								height: dimension.height,
-							}
+							},
 						);
 
 						const outputAssetPath = path.join(outputIconsetPath, iconFileName);
 						await fs.promises.writeFile(outputAssetPath, source);
 					}
-				}
+				},
 			);
 
 			return config;
@@ -564,23 +648,27 @@ const withIconImages: ConfigPlugin<PluginProps> = (config, { icons, dimensions }
 };
 
 // Resolve and sanitize the icon set from config plugin props.
-const resolveIcons = (props: string[] | IconSet | void): PluginProps["icons"] => {
+const resolveIcons = (
+	props: string[] | IconSet | void,
+): PluginProps["icons"] => {
 	let icons: PluginProps["icons"] = {};
 
 	if (Array.isArray(props)) {
 		icons = props.reduce(
 			(prev, curr, i) => ({ ...prev, [i]: { image: curr } }),
-			{}
+			{},
 		);
 	} else if (props) {
 		icons = props;
 	}
 
 	return icons;
-}
+};
 
 // Resolve the required icon dimension/target based on the app config.
-const resolveIconDimensions = (config: ExpoConfig): Required<IconDimensions>[] => {
+const resolveIconDimensions = (
+	config: ExpoConfig,
+): Required<IconDimensions>[] => {
 	const targets: NonNullable<IconDimensions["target"]>[] = [];
 
 	if (config.ios?.supportsTablet) {
@@ -588,36 +676,36 @@ const resolveIconDimensions = (config: ExpoConfig): Required<IconDimensions>[] =
 	}
 
 	return IOS_ICON_DIMENSIONS.filter(
-		({ target }) => !target || targets.includes(target)
+		({ target }) => !target || targets.includes(target),
 	).map((dimension) => ({
 		...dimension,
 		target: dimension.target ?? null,
 		width: dimension.width ?? dimension.size * dimension.scale,
 		height: dimension.height ?? dimension.size * dimension.scale,
 	}));
-}
+};
 
 // Get the icon name, used to refer to the icon from within the plist
 const getIconName = (name: string) => {
 	return `AppIcon-${name}`;
-}
+};
 
 // Get the icon asset file name
 const getIconAssetFileName = (
 	key: string,
 	variant: IconVariant,
-	dimension: Required<IconDimensions>
+	dimension: Required<IconDimensions>,
 ) => {
 	const name = `${getIconName(key)}-${variant}`;
 	const size = `${dimension.size}x${dimension.size}@${dimension.scale}x`;
 	return `${name}-${size}.png`;
-}
+};
 
 // Generate the Contents.json for an icon set
 const generateIconsetContents = (
 	iconset: IosIconSet,
 	key: string,
-	dimension: Required<IconDimensions>
+	dimension: Required<IconDimensions>,
 ) => {
 	const lightFileName = getIconAssetFileName(key, "light", dimension);
 	const images: AssetImage[] = [
@@ -668,7 +756,7 @@ const generateIconsetContents = (
 			author: "expo",
 		},
 	};
-}
+};
 
 // Iterate all combinations of icons and dimensions to export
 const iterateIconsAndDimensionsAsync = async (
@@ -678,14 +766,14 @@ const iterateIconsAndDimensionsAsync = async (
 		iconAndDimension: {
 			icon: PluginProps["icons"][string];
 			dimension: PluginProps["dimensions"][0];
-		}
-	) => Promise<void>
+		},
+	) => Promise<void>,
 ) => {
 	for (const [iconKey, icon] of Object.entries(icons)) {
 		for (const dimension of dimensions) {
 			await callback(iconKey, { icon, dimension });
 		}
 	}
-}
+};
 
 export default withDynamicIcon;

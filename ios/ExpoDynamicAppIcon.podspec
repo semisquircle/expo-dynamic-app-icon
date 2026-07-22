@@ -3,16 +3,16 @@ require 'json'
 package = JSON.parse(File.read(File.join(__dir__, '..', 'package.json')))
 
 Pod::Spec.new do |s|
-  s.name           = 'ExpoDynamicAppIcon'
-  s.version        = package['version']
-  s.summary        = package['description']
-  s.description    = package['description']
-  s.license        = package['license']
-  s.author         = package['author']
-  s.homepage       = package['homepage']
-  s.platform       = :ios, '13.0'
-  s.swift_version  = '5.4'
-  s.source         = { git: 'https://github.com/semisquircle/expo-dynamic-app-icon' }
+  s.name = 'ExpoDynamicAppIcon'
+  s.version = package['version']
+  s.summary = package['description']
+  s.description = package['description']
+  s.license = package['license']
+  s.author = package['author']
+  s.homepage = package['homepage']
+  s.platform = :ios, '13.0'
+  s.swift_version = '5.4'
+  s.source = { git: package['repository'] }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'

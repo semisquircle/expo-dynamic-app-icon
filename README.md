@@ -1,31 +1,166 @@
 # @semisquircle/expo-dynamic-app-icon
 
-Programmatically change the app icon in Expo.
+The **definitive** dynamic app icon package for React Native Expo!\
+Expo SDK 53+ supported.
 
-# Installation in managed Expo projects
+## Features
+- Dynamic Liquid Glass variants for iOS (light, dark, tinted)
+- Adaptive icon layers for Android (background, foreground, monochrome)
+- Support for legacy Android icons
+- Asynchronous API to get and set the app icon
+- Android icon change without app restart
 
-For [managed](https://docs.expo.dev/archive/managed-vs-bare/) Expo projects, please follow the installation instructions in the [API documentation for the latest stable release](#api-documentation). If you follow the link and there is no documentation available then this library is not yet usable within managed projects &mdash; it is likely to be included in an upcoming Expo SDK release.
+This package is a potpourri of various similar projects that have become outdated since the release of iOS 26 + Android 17. It aims to provide the widest icon format support for both platforms, but it is recommended to explore other packages for specific use cases:
+- [expo-dynamic-app-icon](https://github.com/outsung/expo-dynamic-app-icon)
+- [@howincodes/expo-dynamic-app-icon](https://github.com/howincodes/expo-dynamic-app-icon)
+- [expo-awesome-app-icon](https://github.com/oobagi/expo-awesome-app-icon)
+- [@bsky.app/expo-dynamic-app-icon](https://github.com/bluesky-social/expo-dynamic-app-icon)
+- [@variant-systems/expo-dynamic-app-icon](https://github.com/Variant-Systems/expo-dynamic-app-icon)
 
-# Installation in bare React Native projects
-
-For bare React Native projects, you must ensure that you have [installed and configured the `expo` package](https://docs.expo.dev/bare/installing-expo-modules/) before continuing.
-
-### Add the package to your npm dependencies
-
+## Installation
+```sh
+npx expo install @semisquircle/expo-awesome-app-icon
 ```
-npm install @semisquircle/expo-dynamic-app-icon
+
+## Usage
+### **Set App Icon**
+```ts
+import { setAppIcon } from "@semisquircle/expo-dynamic-app-icon";
+
+// Change app icon to 'red' (returns a Promise)
+const result = await setAppIcon("red");
+
+// Reset to default icon
+await setAppIcon(null);
 ```
 
-### Configure for Android
+#### Parameters:
+```ts
+setAppIcon(
+  name: IconName | null,
+  isInBackground?: boolean
+): Promise<IconName | "DEFAULT" | false>
+```
 
+| Parameter        | Type               | Default | Description                                                                                                                    |
+| ---------------- | ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `name`           | `IconName \| null` | `null`  | The icon name to switch to. Pass `null` to reset to the default icon.                                                          |
+| `isInBackground` | `boolean`          | `true`  | - `true`: Icon changes silently in the background (no alert on iOS).<br>- `false`: Immediate change, with system alert on iOS. |
 
-No additional setup necessary.
+#### Returns (Promise):
+- `"DEFAULT"` if reset to the original icon.
+- The **new icon name** on success.
+- `false` if an error occurs.
 
+---
 
-### Configure for iOS
+### **Get Current Icon**
+```ts
+import { getAppIcon } from "@semisquircle/expo-dynamic-app-icon";
 
-Run `npx pod-install` after installing the npm package.
+// Get the current app icon name
+const icon = await getAppIcon();
+console.log(icon); // "red" (or "DEFAULT" if not changed)
+```
 
-# Contributing
+---
 
-Contributions are very welcome! Please refer to guidelines described in the [contributing guide]( https://github.com/expo/expo#contributing).
+### Platform Behavior:
+- **iOS:** `await setAppIcon("dark")` resolves **after** the icon change completes (or fails). The return value accurately reflects success/failure.
+- **Android:** `await setAppIcon("dark")` resolves **immediately** after queuing the change. The actual icon switch happens when the app enters the background. This means the promise always resolves with the icon name, even if the change hasn't been applied yet.
+
+### Notes:
+- **Android limitations:**
+  Android does **not** support icon changes while the app is running in the foreground.
+  To work around this, the icon is changed when the app enters the **Pause state** (background).
+
+- **Pause state** can also trigger during events like permission dialogs.
+  To avoid unwanted icon changes, a **5-second delay** is added to ensure the app is truly in the background.
+
+- To disable the delay and apply the icon change immediately (with the risk of it running during permission dialogs or other pause events), set:
+
+  ```ts
+  await setAppIcon("red", false);
+  ```
+
+  - On **iOS**, `isInBackground: false` triggers the system alert immediately.
+  - On **Android**, it applies the icon change right away without waiting.
+
+## Configure
+Add the plugin to your `app.json`:
+```jsonc
+{
+  // ...
+  "plugins": [
+    [
+      "@semisquircle/expo-dynamic-app-icon",
+      {
+        // Minimal example
+        "christmas": {
+          // Automatically generates dark & tinted variants
+          "ios": "./assets/icons/ios/christmas.png",
+          // Automatically generates legacy roundIcon for AndroidManifest
+          "android": "./assets/icons/android/christmas.png",
+        },
+        // Full example
+        "halloween": {
+          "ios": {
+            "light": "./assets/icons/ios/light.png",
+            // Optional dark icon
+            "dark": "./assets/icons/ios/dark.png",
+            // Optional tinted icon
+            "tinted": "./assets/icons/ios/tinted.png",
+          },
+          "android": {
+            "foregroundImage": "./assets/icons/android/foreground.png",
+            // Optional adaptive background color (overriden by "backgroundImage")
+            "backgroundColor": "#FFA500",
+            // Optional adaptive background image
+            "backgroundImage": "./assets/icons/android/background.png",
+            // Optional themed icon
+            "monochromeImage": "./assets/icons/android/monochrome.png",
+          },
+        },
+      },
+    ],
+  ],
+}
+```
+
+---
+
+The module also exports the config plugin type, so dynamic configuration is supported (if not recommended) for `app.config.js`/`app.config.ts`:
+```ts
+import "tsx/cjs";
+import { ConfigContext, ExpoConfig } from "expo/config";
+import type { IconSet } from "@semisquircle/expo-dynamic-app-icon";
+
+const icons = ["christmas", "halloween", "pride"];
+const dynamicAppIcons = icons.reduce<IconSet>((acc, name) => {
+  acc[name] = {
+    ios: {
+      light: `./assets/icons/ios/${name}-light.png`,
+      dark: `./assets/icons/ios/${name}-dark.png`,,
+      tinted: `./assets/icons/ios/${name}-tinted.png`,,
+    },
+    android: {
+      backgroundImage: `./assets/icons/android/${name}-background.png`,
+      foregroundImage: `./assets/icons/android/${name}-foreground.png`,
+      monochromeImage: `./assets/icons/android/${name}-monochrome.png`,
+    },
+  };
+  return acc;
+}, {});
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  // ...
+  plugins: [
+    [
+      [
+        "@semisquircle/expo-dynamic-app-icon",
+        dynamicAppIcons
+      ],
+    ]
+  ]
+});
+```
