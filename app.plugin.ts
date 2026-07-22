@@ -357,14 +357,7 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (config, { icons }) => 
 						}
 
 						// Adaptive Icon XML
-						const adaptiveIconXml = `
-							<?xml version="1.0" encoding="utf-8"?>
-							<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-								<background android:drawable="@drawable/${backgroundBaseName}" />
-								<foreground android:drawable="@drawable/${foregroundBaseName}" />
-								${(androidConfig.monochromeImage) && `<monochrome android:drawable="@drawable/${monochromeBaseName}" />`}
-							</adaptive-icon>
-						`.trim();
+						const adaptiveIconXml = `<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@drawable/${backgroundBaseName}" />\n    <foreground android:drawable="@drawable/${foregroundBaseName}" />${(androidConfig.monochromeImage) && `\n    <monochrome android:drawable="@drawable/${monochromeBaseName}" />`}\n</adaptive-icon>`;
 						const adaptiveIconXmlPath = path.join(
 							mipmapAnyDpiV26DirPath,
 							`${adaptiveIconBaseName}.xml`
