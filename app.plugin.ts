@@ -14,7 +14,7 @@ import type {
 	PluginProps,
 	IconDimensions,
 	IconVariant,
-	IconSet,
+	DynamicIconSet,
 	IosIconSet,
 	IconSetProps,
 } from "./build/types";
@@ -43,7 +43,7 @@ const IOS_ICON_DIMENSIONS: IconDimensions[] = [
 	{ scale: 1, size: 1024 },
 ];
 
-const withDynamicIcon: ConfigPlugin<string[] | IconSet | void> = (
+const withDynamicIcon: ConfigPlugin<string[] | DynamicIconSet | void> = (
 	config,
 	props = {},
 ) => {
@@ -65,7 +65,10 @@ const withDynamicIcon: ConfigPlugin<string[] | IconSet | void> = (
 
 
 //* TypeScript
-const withGenerateTypes = (config: ExpoConfig, props: { icons: IconSet }) => {
+const withGenerateTypes = (
+	config: ExpoConfig,
+	props: { icons: DynamicIconSet },
+) => {
 	const names = Object.keys(props.icons);
 	const union = names.map((name) => `"${name}"`).join(" | ") || "string";
 
@@ -649,7 +652,7 @@ const withIconImages: ConfigPlugin<PluginProps> = (
 
 // Resolve and sanitize the icon set from config plugin props.
 const resolveIcons = (
-	props: string[] | IconSet | void,
+	props: string[] | DynamicIconSet | void,
 ): PluginProps["icons"] => {
 	let icons: PluginProps["icons"] = {};
 

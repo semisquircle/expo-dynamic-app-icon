@@ -25,6 +25,8 @@ export type AssetImage = {
 	appearances?: { appearance: "luminosity"; value: IconVariant }[];
 };
 
+export type IosIconSet = string | { light: string; dark?: string; tinted?: string };
+
 export type AndroidAdaptiveIconConfig = {
 	foregroundImage: string;
 	monochromeImage?: string;
@@ -33,14 +35,14 @@ export type AndroidAdaptiveIconConfig = {
 	| { backgroundColor: string; backgroundImage?: string }
 );
 
-export type IconSet = Record<string, IconSetProps>;
-export type IosIconSet = string | { light: string; dark?: string; tinted?: string };
 export type IconSetProps = {
 	ios?: IosIconSet;
 	android?: string | AndroidAdaptiveIconConfig;
 };
 
+export type DynamicIconSet = Record<string, IconSetProps>;
+
 export type PluginProps = {
-	icons: IconSet;
+	icons: DynamicIconSet;
 	dimensions: Required<IconDimensions>[];
 };
