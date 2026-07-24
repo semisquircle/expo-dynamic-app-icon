@@ -23,7 +23,10 @@
     "expo-dynamic-app-icon",
     "ExpoDynamicAppIcon"
   ],
-  "repository": "https://github.com/semisquircle/expo-dynamic-app-icon",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/semisquircle/expo-dynamic-app-icon.git"
+  },
   "bugs": {
     "url": "https://github.com/semisquircle/expo-dynamic-app-icon/issues"
   },
