@@ -40,44 +40,12 @@ public class ExpoDynamicAppIconModule: Module {
                 iconNameToUse = "AppIcon-\(iconName)"
             }
 
-            if isInBackground {
-                typealias SetAlternateIconName = @convention(c) (NSObject, Selector, NSString?, @escaping (NSError?) -> ()) -> ()
-
-                let selectorString = "_setAlternateIconName:completionHandler:"
-                let selector = NSSelectorFromString(selectorString)
-
-                if let methodIMP = UIApplication.shared.method(for: selector) {
-                    let method = unsafeBitCast(methodIMP, to: SetAlternateIconName.self)
-                    method(UIApplication.shared, selector, iconNameToUse as NSString?) { error in
-                        // [I6] Private API completion may fire on arbitrary thread — dispatch to main
-                        DispatchQueue.main.async {
-                            if let error = error {
-                                print("Failed to set app icon (background): \(error.localizedDescription)")
-                                completion(false)
-                            } else {
-                                completion(true)
-                            }
-                        }
-                    }
+            UIApplication.shared.setAlternateIconName(iconNameToUse) { error in
+                if let error = error {
+                    print("Failed to set app icon: \(error.localizedDescription)")
+                    completion(false)
                 } else {
-                    // Fallback to public API if private API not available
-                    UIApplication.shared.setAlternateIconName(iconNameToUse) { error in
-                        if let error = error {
-                            print("Failed to set app icon (fallback): \(error.localizedDescription)")
-                            completion(false)
-                        } else {
-                            completion(true)
-                        }
-                    }
-                }
-            } else {
-                UIApplication.shared.setAlternateIconName(iconNameToUse) { error in
-                    if let error = error {
-                        print("Failed to set app icon: \(error.localizedDescription)")
-                        completion(false)
-                    } else {
-                        completion(true)
-                    }
+                    completion(true)
                 }
             }
         }

@@ -87,7 +87,7 @@ console.log(icon); // "red" (or "DEFAULT" if not changed)
   ```
 
   - On **iOS**, `isInBackground` has **no effect** and the system alert will be triggered regardless.
-  - On **Android**, it applies the icon change right away without waiting.
+  - On **Android**, `isInBackground: false` applies the icon change right away without waiting.
 
 ## Configure
 Add the plugin to your `app.json`:
