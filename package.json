@@ -1,6 +1,6 @@
 {
   "name": "@semisquircle/expo-dynamic-app-icon",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Programmatically change the app icon in Expo.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
