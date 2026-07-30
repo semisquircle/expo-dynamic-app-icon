@@ -1,6 +1,6 @@
 {
   "name": "@semisquircle/expo-dynamic-app-icon",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Programmatically change the app icon in Expo.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -34,26 +34,17 @@
   "license": "MIT",
   "homepage": "https://github.com/semisquircle/expo-dynamic-app-icon#readme",
   "dependencies": {
-    "@expo/image-utils": "^0.7.0",
-    "xcode": "^3.0.1"
+    "@expo/image-utils": "^0.8.14"
   },
   "devDependencies": {
-    "@expo/config": "*",
-    "@expo/config-plugins": "*",
-    "@types/node": "^26.1.1",
-    "@types/react": "*",
-    "expo-module-scripts": "^4.0.0",
-    "expo-modules-core": "*"
+    "@types/react": "~19.1.1",
+    "expo": "^55.0.20",
+    "expo-module-scripts": "^55.0.2",
+    "react-native": "0.82.1"
   },
   "peerDependencies": {
-    "expo": ">=53.0.0",
-    "expo-modules-core": "*",
+    "expo": "*",
     "react": "*",
     "react-native": "*"
-  },
-  "peerDependenciesMeta": {
-    "expo-modules-core": {
-      "optional": true
-    }
   }
 }

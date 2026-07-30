@@ -1,24 +1,28 @@
 # @semisquircle/expo-dynamic-app-icon
 
-The **definitive** dynamic app icon package for React Native Expo!\
+⭐ The **DEFINITIVE** dynamic app icon module for React Native Expo! ⭐\
+Programmatically change between bundled launcher icons on iOS and Android.\
 Expo SDK 53+ supported.
 
+> [!WARNING]
+> This package contains native code and does not work in Expo Go. Use a development, preview, or production build.
+
 ## FAQ
-#### *Why did you make this package?*
+#### *Why did you make this module?*
 - This package is a potpourri of various similar projects that have become outdated since the release of iOS 26 + Android 17. It aims to provide the widest icon format support for both platforms, but it is recommended to explore other packages for specific use cases:
-  - [expo-dynamic-app-icon](https://github.com/outsung/expo-dynamic-app-icon)
-  - [@howincodes/expo-dynamic-app-icon](https://github.com/howincodes/expo-dynamic-app-icon)
-  - [expo-awesome-app-icon](https://github.com/oobagi/expo-awesome-app-icon)
-  - [@bsky.app/expo-dynamic-app-icon](https://github.com/bluesky-social/expo-dynamic-app-icon)
-  - [@variant-systems/expo-dynamic-app-icon](https://github.com/Variant-Systems/expo-dynamic-app-icon)
-#### *Does this package support light, dark, and tinted variants on iOS?*
+  - [outsung/expo-dynamic-app-icon](https://github.com/outsung/expo-dynamic-app-icon)
+  - [howincodes/expo-dynamic-app-icon](https://github.com/howincodes/expo-dynamic-app-icon)
+  - [oobagi/expo-awesome-app-icon](https://github.com/oobagi/expo-awesome-app-icon)
+  - [bluesky-social/expo-dynamic-app-icon](https://github.com/bluesky-social/expo-dynamic-app-icon)
+  - [Variant-Systems/expo-dynamic-app-icon](https://github.com/Variant-Systems/expo-dynamic-app-icon)
+#### *Does this module support light, dark, and tinted variants on iOS?*
 - Yes! If only one iOS image is provided, all three will be generated as the same image.
-#### *Does this package support adaptive icon background, foreground, and monochrome layers on Android?*
+#### *Does this module support adaptive icon background, foreground, and monochrome layers on Android?*
 - Yes! If only one Android image is provided, the legacy Android icon format will be generated.
-#### *Does this package force the app to immediately close on Android when changing icons?*
+#### *Does this module necessitate a system alert on iOS when changing icons?*
+- Yes, unfortunately. See the [Platform Behavior](#platform-behavior) section.
+#### *Does this module force the app to immediately close on Android when changing icons?*
 - No! See the [Platform Behavior](#platform-behavior) section.
-#### *Does this package necessitate a system alert on iOS when changing icons?*
-- Unfortunately yes. iOS 26 has patched previous private API workarounds that would suppress the alert popup when triggering `setAlternateIconName`. See the [Platform Behavior](#platform-behavior) section.
 
 ## Installation
 ```sh
@@ -26,7 +30,7 @@ npx expo install @semisquircle/expo-awesome-app-icon
 ```
 
 ## Usage
-### **Set App Icon**
+### **Setting App Icon**
 ```ts
 import { setAppIcon } from "@semisquircle/expo-dynamic-app-icon";
 
@@ -57,7 +61,7 @@ setAppIcon(
 
 ---
 
-### **Get Current Icon**
+### **Getting Current Icon**
 ```ts
 import { getAppIcon } from "@semisquircle/expo-dynamic-app-icon";
 
@@ -68,26 +72,15 @@ console.log(icon); // "red" (or "DEFAULT" if not changed)
 
 ---
 
-### Platform Behavior:
-- **iOS:** `await setAppIcon("dark")` resolves **after** the icon change completes (or fails). The return value accurately reflects success/failure.
-- **Android:** `await setAppIcon("dark")` resolves **immediately** after queuing the change. The actual icon switch happens when the app enters the background. This means the promise always resolves with the icon name, even if the change hasn't been applied yet.
+### Platform Behavior
+#### iOS
+- `await setAppIcon("dark")` resolves **after** the icon change completes (or fails). The return value accurately reflects success/failure.
+- iOS calls `UIApplication.setAlternateIconName` and shows a confirmation alert after a successful icon change. iOS 26 has patched previous private API workarounds that would suppress the alert popup. This package avoids these methods for App Store compatibility, so `isInBackground` has no effect and the system alert will be triggered regardless.
 
-### Notes:
-- **Android limitations:**
-  Android does **not** support icon changes while the app is running in the foreground.
-  To work around this, the icon is changed when the app enters the **Pause state** (background).
-
-- **Pause state** can also trigger during events like permission dialogs.
-  To avoid unwanted icon changes, a **5-second delay** is added to ensure the app is truly in the background.
-
-- To disable the delay and apply the icon change immediately (with the risk of it running during permission dialogs or other pause events), set:
-
-  ```ts
-  await setAppIcon("red", false);
-  ```
-
-  - On **iOS**, `isInBackground` has **no effect** and the system alert will be triggered regardless.
-  - On **Android**, `isInBackground: false` applies the icon change right away without waiting.
+#### Android
+- `await setAppIcon("dark")` resolves **immediately** after queuing the change. The actual icon switch happens when the app enters the background. This means the promise always resolves with the icon name, even if the change hasn't been applied yet.
+- Android does **not** support icon changes while the app is running in the foreground. To work around this, the icon is changed when the app enters the **Pause state** (background). Pause state can also trigger during events like permission dialogs. To avoid unwanted icon changes, a **5-second delay** is added to ensure the app is truly in the background.
+- To disable the delay and apply the icon change immediately (with the risk of it running during permission dialogs or other pause events), set `await setAppIcon("red", false)`.
 
 ## Configure
 Add the plugin to your `app.json`:
@@ -100,7 +93,7 @@ Add the plugin to your `app.json`:
       {
         // Minimal example
         "christmas": {
-          // Automatically generates dark & tinted variants
+          // Automatically generates dark and tinted variants
           "ios": "./assets/icons/ios/christmas.png",
           // Automatically generates legacy android:icon and android:roundIcon launchers
           "android": "./assets/icons/android/christmas.png",
@@ -143,8 +136,8 @@ const dynamicAppIcons = icons.reduce<DynamicIconSet>((acc, name) => {
   acc[name] = {
     ios: {
       light: `./assets/icons/ios/${name}-light.png`,
-      dark: `./assets/icons/ios/${name}-dark.png`,,
-      tinted: `./assets/icons/ios/${name}-tinted.png`,,
+      dark: `./assets/icons/ios/${name}-dark.png`,
+      tinted: `./assets/icons/ios/${name}-tinted.png`,
     },
     android: {
       backgroundImage: `./assets/icons/android/${name}-background.png`,
@@ -167,3 +160,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ]
 });
 ```
+
+## Recommended Image Formats
+#### See [Apple's current guidelines](https://developer.apple.com/design/human-interface-guidelines/app-icons) on icon variants:
+- `ios` only – 1024 x 1024 px PNG, JPEG, or WEBP.
+- `ios.light` – 1024 x 1024 px PNG, JPEG, or WEBP.
+- `ios.dark` – 1024 x 1024 px PNG, JPEG, or WEBP.
+- `ios.tinted` – 1024 x 1024 px PNG, JPEG, or WEBP. Use a simplified greyscale version of your base icon.
+
+#### See [Google's current guidelines](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive) on adaptive icons:
+- `android` only – 432 x 432 px PNG, JPEG, or WEBP.
+- `android.backgroundImage` – 432 x 432 px PNG, JPEG, or WEBP.
+- `android.foregroundImage` – 432 x 432 px PNG, JPEG, or WEBP.
+- `android.monochromeImage` – 432 x 432 px PNG, JPEG, or WEBP. Use a simple single-color shape on a transparent background.

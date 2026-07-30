@@ -1,8 +1,6 @@
 {
+  "extends": "expo-module-scripts/tsconfig.plugin",
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
     "rootDir": ".",
     "outDir": ".",
     "declaration": false,
@@ -12,5 +10,5 @@
     "types": ["node"]
   },
   "include": ["app.plugin.ts"],
-  "exclude": []
+  "exclude": ["**/__mocks__/*", "**/__tests__/*"]
 }

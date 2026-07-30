@@ -19,52 +19,38 @@ import type {
 	IconSetProps,
 } from "./build/types";
 
-
 const moduleRoot = path.join(__dirname, "..", "..");
+
+const IOS_ASSETS_DIRECTORY = "Images.xcassets";
+const IOS_ICON_DIMENSIONS: IconDimensions[] = [{ scale: 1, size: 1024 }];
 
 const { getMainApplicationOrThrow, getMainActivityOrThrow } =
 	AndroidConfig.Manifest;
-
-const ANDROID_FOLDER_PATH = ["app", "src", "main", "res"];
-const ANDROID_FOLDER_NAMES = [
-	"mipmap-hdpi",
-	"mipmap-mdpi",
-	"mipmap-xhdpi",
-	"mipmap-xxhdpi",
-	"mipmap-xxxhdpi",
+const ANDROID_RES_DIRECTORY = ["app", "src", "main", "res"];
+const ANDROID_MIPMAP_DENSITIES = [
+	{
+		name: "mipmap-mdpi",
+		size: 108,
+	},
+	{
+		name: "mipmap-hdpi",
+		size: 162,
+	},
+	{
+		name: "mipmap-xhdpi",
+		size: 216,
+	},
+	{
+		name: "mipmap-xxhdpi",
+		size: 324,
+	},
+	{
+		name: "mipmap-xxxhdpi",
+		size: 432,
+	},
 ];
-const ANDROID_SIZES = [162, 108, 216, 324, 432];
 
-// The default icon folder name to export to
-const IOS_ASSETS_FOLDER_NAME = "Images.xcassets";
-// The default icon dimensions to export
-const IOS_ICON_DIMENSIONS: IconDimensions[] = [
-	// iPhone, iPad, MacOS
-	{ scale: 1, size: 1024 },
-];
-
-const withDynamicIcon: ConfigPlugin<string[] | DynamicIconSet | void> = (
-	config,
-	props = {},
-) => {
-	const icons = resolveIcons(props);
-	const dimensions = resolveIconDimensions(config);
-
-	config = withGenerateTypes(config, { icons });
-
-	// iOS
-	config = withIconXcodeProject(config, { icons, dimensions });
-	config = withIconImages(config, { icons, dimensions });
-
-	// Android
-	config = withIconAndroidManifest(config, { icons, dimensions });
-	config = withIconAndroidImages(config, { icons, dimensions });
-
-	return config;
-};
-
-
-//* TypeScript
+//* Plugin config
 const withGenerateTypes = (
 	config: ExpoConfig,
 	props: { icons: DynamicIconSet },
@@ -95,6 +81,297 @@ const withGenerateTypes = (
 	return config;
 };
 
+const withDynamicIcon: ConfigPlugin<string[] | DynamicIconSet | void> = (
+	config,
+	props = {},
+) => {
+	const icons = resolveIcons(props);
+	const dimensions = resolveIconDimensions(config);
+
+	config = withGenerateTypes(config, { icons });
+
+	// iOS
+	config = withIconXcodeProject(config, { icons, dimensions });
+	config = withIconImages(config, { icons, dimensions });
+
+	// Android
+	config = withIconAndroidManifest(config, { icons, dimensions });
+	config = withIconAndroidImages(config, { icons, dimensions });
+
+	return config;
+};
+
+//* iOS
+const withIconXcodeProject: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons, dimensions },
+) => {
+	return withXcodeProject(config, async (config: any) => {
+		const project = config.modResults;
+
+		// Remove old settings
+		const configurations = project.hash.project.objects["XCBuildConfiguration"];
+		for (const id of Object.keys(configurations)) {
+			const configuration =
+				project.hash.project.objects["XCBuildConfiguration"][id];
+			if (typeof configuration !== "object") continue;
+
+			const buildSettings = configuration.buildSettings;
+			delete buildSettings["ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES"];
+			delete buildSettings["ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS"];
+			delete buildSettings["ASSETCATALOG_COMPILER_APPICON_NAME"];
+			project.hash.project.objects["XCBuildConfiguration"][id].buildSettings =
+				buildSettings;
+		}
+
+		// Add new settings
+		for (const id of Object.keys(configurations)) {
+			const configuration =
+				project.hash.project.objects["XCBuildConfiguration"][id];
+			if (typeof configuration !== "object") continue;
+
+			const buildSettings = configuration.buildSettings;
+
+			// Include all AppIcon assets
+			buildSettings["ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS"] = "YES";
+
+			// Include all alternate AppIcon names
+			const names: string[] = [];
+			await iterateIconsAndDimensionsAsync(
+				{ icons, dimensions },
+				async (key) => {
+					const iconName = getIconName(key);
+					names.push(iconName);
+				},
+			);
+			buildSettings["ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES"] =
+				JSON.stringify(names.join(" "));
+
+			// Include default icon
+			buildSettings["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon";
+
+			project.hash.project.objects["XCBuildConfiguration"][id].buildSettings =
+				buildSettings;
+		}
+
+		return config;
+	});
+};
+
+const withIconImages: ConfigPlugin<PluginProps> = (
+	config,
+	{ icons, dimensions }: any,
+) => {
+	return withDangerousMod(config, [
+		"ios",
+		async (config: any) => {
+			const iosRoot = path.join(
+				config.modRequest.platformProjectRoot,
+				config.modRequest.projectName!,
+			);
+
+			await iterateIconsAndDimensionsAsync(
+				{ icons, dimensions },
+				async (key, { icon, dimension }) => {
+					if (!icon.ios) return;
+
+					// Clean the old AppIcon-*.appiconset
+					const iconsetPath = path.join(
+						IOS_ASSETS_DIRECTORY,
+						`${getIconName(key)}.appiconset`,
+					);
+					const outputIconsetPath = path.join(iosRoot, iconsetPath);
+					await fs.promises
+						.rm(outputIconsetPath, {
+							recursive: true,
+							force: true,
+						})
+						.catch(() => null);
+					await fs.promises.mkdir(outputIconsetPath, { recursive: true });
+
+					// Generate the Contents.json file
+					const contents = generateIconsetContents(icon.ios, key, dimension);
+					const outputContentsPath = path.join(
+						outputIconsetPath,
+						"Contents.json",
+					);
+					await fs.promises.writeFile(
+						outputContentsPath,
+						JSON.stringify(contents, null, 2),
+					);
+
+					const images =
+						typeof icon.ios === "string" ? { light: icon.ios } : icon.ios;
+
+					// Generate the assets for each variant
+					for (const [variant, icon] of Object.entries(images)) {
+						validateImagePath(
+							config.modRequest.projectRoot,
+							icon,
+							`${key}/${variant}`,
+							"ios",
+						);
+						const iconFileName = getIconAssetFileName(
+							key,
+							variant as IconVariant,
+							dimension,
+						);
+						const isTransparent = variant === "dark";
+						const { source } = await generateImageAsync(
+							{
+								projectRoot: config.modRequest.projectRoot,
+								cacheType: `expo-dynamic-app-icon-${key}-${variant}-${dimension.width}-${dimension.height}`,
+							},
+							{
+								name: iconFileName,
+								src: icon,
+								removeTransparency: !isTransparent,
+								backgroundColor: isTransparent ? "transparent" : "#ffffff",
+								resizeMode: "cover",
+								width: dimension.width,
+								height: dimension.height,
+							},
+						);
+
+						const outputAssetPath = path.join(outputIconsetPath, iconFileName);
+						await fs.promises.writeFile(outputAssetPath, source);
+					}
+				},
+			);
+
+			return config;
+		},
+	]);
+};
+
+// Resolve and sanitize the icon set from config plugin props.
+const resolveIcons = (
+	props: string[] | DynamicIconSet | void,
+): PluginProps["icons"] => {
+	let icons: PluginProps["icons"] = {};
+
+	if (Array.isArray(props)) {
+		icons = props.reduce(
+			(prev, curr, i) => ({ ...prev, [i]: { image: curr } }),
+			{},
+		);
+	} else if (props) {
+		icons = props;
+	}
+
+	return icons;
+};
+
+// Resolve the required icon dimension/target based on the app config.
+const resolveIconDimensions = (
+	config: ExpoConfig,
+): Required<IconDimensions>[] => {
+	const targets: NonNullable<IconDimensions["target"]>[] = [];
+
+	if (config.ios?.supportsTablet) {
+		targets.push("ipad");
+	}
+
+	return IOS_ICON_DIMENSIONS.filter(
+		({ target }) => !target || targets.includes(target),
+	).map((dimension) => ({
+		...dimension,
+		target: dimension.target ?? null,
+		width: dimension.width ?? dimension.size * dimension.scale,
+		height: dimension.height ?? dimension.size * dimension.scale,
+	}));
+};
+
+// Get the icon name, used to refer to the icon from within the plist
+const getIconName = (name: string) => {
+	return `AppIcon-${name}`;
+};
+
+// Get the icon asset file name
+const getIconAssetFileName = (
+	key: string,
+	variant: IconVariant,
+	dimension: Required<IconDimensions>,
+) => {
+	const name = `${getIconName(key)}-${variant}`;
+	const size = `${dimension.size}x${dimension.size}@${dimension.scale}x`;
+	return `${name}-${size}.png`;
+};
+
+// Generate the Contents.json for an icon set
+const generateIconsetContents = (
+	iconset: IosIconSet,
+	key: string,
+	dimension: Required<IconDimensions>,
+) => {
+	const lightFileName = getIconAssetFileName(key, "light", dimension);
+	const images: AssetImage[] = [
+		{
+			filename: lightFileName,
+			idiom: "universal",
+			platform: "ios",
+			size: `${dimension.size}x${dimension.size}`,
+		},
+	];
+
+	if (typeof iconset === "object" && iconset.dark) {
+		const darkFileName = getIconAssetFileName(key, "dark", dimension);
+		images.push({
+			filename: darkFileName,
+			idiom: "universal",
+			platform: "ios",
+			size: `${dimension.size}x${dimension.size}`,
+			appearances: [
+				{
+					appearance: "luminosity",
+					value: "dark",
+				},
+			],
+		});
+	}
+
+	if (typeof iconset === "object" && iconset.tinted) {
+		const tintedFileName = getIconAssetFileName(key, "tinted", dimension);
+		images.push({
+			filename: tintedFileName,
+			idiom: "universal",
+			platform: "ios",
+			size: `${dimension.size}x${dimension.size}`,
+			appearances: [
+				{
+					appearance: "luminosity",
+					value: "tinted",
+				},
+			],
+		});
+	}
+
+	return {
+		images,
+		info: {
+			version: 1,
+			author: "expo",
+		},
+	};
+};
+
+// Iterate all combinations of icons and dimensions to export
+const iterateIconsAndDimensionsAsync = async (
+	{ icons, dimensions }: PluginProps,
+	callback: (
+		iconKey: string,
+		iconAndDimension: {
+			icon: PluginProps["icons"][string];
+			dimension: PluginProps["dimensions"][0];
+		},
+	) => Promise<void>,
+) => {
+	for (const [iconKey, icon] of Object.entries(icons)) {
+		for (const dimension of dimensions) {
+			await callback(iconKey, { icon, dimension });
+		}
+	}
+};
 
 //* Android
 const getSafeResourceName = (name: string) => {
@@ -208,7 +485,7 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 		async (config) => {
 			const androidResPath = path.join(
 				config.modRequest.platformProjectRoot,
-				...ANDROID_FOLDER_PATH,
+				...ANDROID_RES_DIRECTORY,
 			);
 
 			const drawableDirPath = path.join(androidResPath, "drawable");
@@ -223,8 +500,8 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 
 			const removeIconRes = async () => {
 				// Clean up legacy mipmap-*dpi folders
-				for (const folderName of ANDROID_FOLDER_NAMES) {
-					const folderPath = path.join(androidResPath, folderName);
+				for (const density of ANDROID_MIPMAP_DENSITIES) {
+					const folderPath = path.join(androidResPath, density.name);
 					const files = await fs.promises.readdir(folderPath).catch(() => []);
 					for (const file of files) {
 						// Avoid deleting main ic_launcher files, only those generated by this plugin (conventionally named)
@@ -435,12 +712,8 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 							iconConfigName,
 							"android",
 						);
-						for (let i = 0; ANDROID_FOLDER_NAMES.length > i; i += 1) {
-							const size = ANDROID_SIZES[i];
-							const outputPath = path.join(
-								androidResPath,
-								ANDROID_FOLDER_NAMES[i],
-							);
+						for (const density of ANDROID_MIPMAP_DENSITIES) {
+							const outputPath = path.join(androidResPath, density.name);
 							const safeIconKey = getSafeResourceName(iconConfigName); // Use the same safe name
 
 							// Square ones
@@ -448,7 +721,7 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 							const { source: sourceSquare } = await generateImageAsync(
 								{
 									projectRoot: config.modRequest.projectRoot,
-									cacheType: `expo-dynamic-app-icon-${safeIconKey}-${size}`,
+									cacheType: `expo-dynamic-app-icon-${safeIconKey}-${density.size}`,
 								},
 								{
 									name: fileNameSquare,
@@ -459,8 +732,8 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 									removeTransparency: true,
 									backgroundColor: "#ffffff",
 									resizeMode: "cover",
-									width: size,
-									height: size,
+									width: density.size,
+									height: density.size,
 								},
 							);
 							await fs.promises.writeFile(
@@ -473,7 +746,7 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 							const { source: sourceRound } = await generateImageAsync(
 								{
 									projectRoot: config.modRequest.projectRoot,
-									cacheType: `expo-dynamic-app-icon-round-${safeIconKey}-${size}`,
+									cacheType: `expo-dynamic-app-icon-round-${safeIconKey}-${density.size}`,
 								},
 								{
 									name: fileNameRound,
@@ -484,9 +757,9 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 									removeTransparency: true,
 									backgroundColor: "#ffffff",
 									resizeMode: "cover",
-									width: size,
-									height: size,
-									borderRadius: size / 2,
+									width: density.size,
+									height: density.size,
+									borderRadius: density.size / 2,
 								},
 							);
 							await fs.promises.writeFile(
@@ -504,279 +777,6 @@ const withIconAndroidImages: ConfigPlugin<PluginProps> = (
 			return config;
 		},
 	]);
-};
-
-
-//* iOS
-const withIconXcodeProject: ConfigPlugin<PluginProps> = (
-	config,
-	{ icons, dimensions },
-) => {
-	return withXcodeProject(config, async (config: any) => {
-		const project = config.modResults;
-
-		// Remove old settings
-		const configurations = project.hash.project.objects["XCBuildConfiguration"];
-		for (const id of Object.keys(configurations)) {
-			const configuration =
-				project.hash.project.objects["XCBuildConfiguration"][id];
-			if (typeof configuration !== "object") continue;
-
-			const buildSettings = configuration.buildSettings;
-			delete buildSettings["ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES"];
-			delete buildSettings["ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS"];
-			delete buildSettings["ASSETCATALOG_COMPILER_APPICON_NAME"];
-			project.hash.project.objects["XCBuildConfiguration"][id].buildSettings =
-				buildSettings;
-		}
-
-		// Add new settings
-		for (const id of Object.keys(configurations)) {
-			const configuration =
-				project.hash.project.objects["XCBuildConfiguration"][id];
-			if (typeof configuration !== "object") continue;
-
-			const buildSettings = configuration.buildSettings;
-
-			// Include all AppIcon assets
-			buildSettings["ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS"] = "YES";
-
-			// Include all alternate AppIcon names
-			const names: string[] = [];
-			await iterateIconsAndDimensionsAsync(
-				{ icons, dimensions },
-				async (key) => {
-					const iconName = getIconName(key);
-					names.push(iconName);
-				},
-			);
-			buildSettings["ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES"] =
-				JSON.stringify(names.join(" "));
-
-			// Include default icon
-			buildSettings["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon";
-
-			project.hash.project.objects["XCBuildConfiguration"][id].buildSettings =
-				buildSettings;
-		}
-
-		return config;
-	});
-};
-
-const withIconImages: ConfigPlugin<PluginProps> = (
-	config,
-	{ icons, dimensions }: any,
-) => {
-	return withDangerousMod(config, [
-		"ios",
-		async (config: any) => {
-			const iosRoot = path.join(
-				config.modRequest.platformProjectRoot,
-				config.modRequest.projectName!,
-			);
-
-			await iterateIconsAndDimensionsAsync(
-				{ icons, dimensions },
-				async (key, { icon, dimension }) => {
-					if (!icon.ios) return;
-
-					// Clean the old AppIcon-*.appiconset
-					const iconsetPath = path.join(
-						IOS_ASSETS_FOLDER_NAME,
-						`${getIconName(key)}.appiconset`,
-					);
-					const outputIconsetPath = path.join(iosRoot, iconsetPath);
-					await fs.promises
-						.rm(outputIconsetPath, {
-							recursive: true,
-							force: true,
-						})
-						.catch(() => null);
-					await fs.promises.mkdir(outputIconsetPath, { recursive: true });
-
-					// Generate the Contents.json file
-					const contents = generateIconsetContents(icon.ios, key, dimension);
-					const outputContentsPath = path.join(
-						outputIconsetPath,
-						"Contents.json",
-					);
-					await fs.promises.writeFile(
-						outputContentsPath,
-						JSON.stringify(contents, null, 2),
-					);
-
-					const images =
-						typeof icon.ios === "string" ? { light: icon.ios } : icon.ios;
-
-					// Generate the assets for each variant
-					for (const [variant, icon] of Object.entries(images)) {
-						validateImagePath(
-							config.modRequest.projectRoot,
-							icon,
-							`${key}/${variant}`,
-							"ios",
-						);
-						const iconFileName = getIconAssetFileName(
-							key,
-							variant as IconVariant,
-							dimension,
-						);
-						const isTransparent = variant === "dark";
-						const { source } = await generateImageAsync(
-							{
-								projectRoot: config.modRequest.projectRoot,
-								cacheType: `expo-dynamic-app-icon-${key}-${variant}-${dimension.width}-${dimension.height}`,
-							},
-							{
-								name: iconFileName,
-								src: icon,
-								removeTransparency: !isTransparent,
-								backgroundColor: isTransparent ? "transparent" : "#ffffff",
-								resizeMode: "cover",
-								width: dimension.width,
-								height: dimension.height,
-							},
-						);
-
-						const outputAssetPath = path.join(outputIconsetPath, iconFileName);
-						await fs.promises.writeFile(outputAssetPath, source);
-					}
-				},
-			);
-
-			return config;
-		},
-	]);
-};
-
-// Resolve and sanitize the icon set from config plugin props.
-const resolveIcons = (
-	props: string[] | DynamicIconSet | void,
-): PluginProps["icons"] => {
-	let icons: PluginProps["icons"] = {};
-
-	if (Array.isArray(props)) {
-		icons = props.reduce(
-			(prev, curr, i) => ({ ...prev, [i]: { image: curr } }),
-			{},
-		);
-	} else if (props) {
-		icons = props;
-	}
-
-	return icons;
-};
-
-// Resolve the required icon dimension/target based on the app config.
-const resolveIconDimensions = (
-	config: ExpoConfig,
-): Required<IconDimensions>[] => {
-	const targets: NonNullable<IconDimensions["target"]>[] = [];
-
-	if (config.ios?.supportsTablet) {
-		targets.push("ipad");
-	}
-
-	return IOS_ICON_DIMENSIONS.filter(
-		({ target }) => !target || targets.includes(target),
-	).map((dimension) => ({
-		...dimension,
-		target: dimension.target ?? null,
-		width: dimension.width ?? dimension.size * dimension.scale,
-		height: dimension.height ?? dimension.size * dimension.scale,
-	}));
-};
-
-// Get the icon name, used to refer to the icon from within the plist
-const getIconName = (name: string) => {
-	return `AppIcon-${name}`;
-};
-
-// Get the icon asset file name
-const getIconAssetFileName = (
-	key: string,
-	variant: IconVariant,
-	dimension: Required<IconDimensions>,
-) => {
-	const name = `${getIconName(key)}-${variant}`;
-	const size = `${dimension.size}x${dimension.size}@${dimension.scale}x`;
-	return `${name}-${size}.png`;
-};
-
-// Generate the Contents.json for an icon set
-const generateIconsetContents = (
-	iconset: IosIconSet,
-	key: string,
-	dimension: Required<IconDimensions>,
-) => {
-	const lightFileName = getIconAssetFileName(key, "light", dimension);
-	const images: AssetImage[] = [
-		{
-			filename: lightFileName,
-			idiom: "universal",
-			platform: "ios",
-			size: `${dimension.size}x${dimension.size}`,
-		},
-	];
-
-	if (typeof iconset === "object" && iconset.dark) {
-		const darkFileName = getIconAssetFileName(key, "dark", dimension);
-		images.push({
-			filename: darkFileName,
-			idiom: "universal",
-			platform: "ios",
-			size: `${dimension.size}x${dimension.size}`,
-			appearances: [
-				{
-					appearance: "luminosity",
-					value: "dark",
-				},
-			],
-		});
-	}
-
-	if (typeof iconset === "object" && iconset.tinted) {
-		const tintedFileName = getIconAssetFileName(key, "tinted", dimension);
-		images.push({
-			filename: tintedFileName,
-			idiom: "universal",
-			platform: "ios",
-			size: `${dimension.size}x${dimension.size}`,
-			appearances: [
-				{
-					appearance: "luminosity",
-					value: "tinted",
-				},
-			],
-		});
-	}
-
-	return {
-		images,
-		info: {
-			version: 1,
-			author: "expo",
-		},
-	};
-};
-
-// Iterate all combinations of icons and dimensions to export
-const iterateIconsAndDimensionsAsync = async (
-	{ icons, dimensions }: PluginProps,
-	callback: (
-		iconKey: string,
-		iconAndDimension: {
-			icon: PluginProps["icons"][string];
-			dimension: PluginProps["dimensions"][0];
-		},
-	) => Promise<void>,
-) => {
-	for (const [iconKey, icon] of Object.entries(icons)) {
-		for (const dimension of dimensions) {
-			await callback(iconKey, { icon, dimension });
-		}
-	}
 };
 
 export default withDynamicIcon;
