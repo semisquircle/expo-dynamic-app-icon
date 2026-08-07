@@ -1,4 +1,4 @@
-import { DynamicAppIconRegistry } from "./types";
+import type { DynamicAppIconRegistry } from "./types";
 
 export type IconName = DynamicAppIconRegistry["IconName"];
 

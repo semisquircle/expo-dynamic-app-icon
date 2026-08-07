@@ -1,4 +1,4 @@
-import type { ExpoConfig } from "@expo/config";
+import type { ExpoConfig } from "@expo/config-types";
 import {
 	ConfigPlugin,
 	withDangerousMod,
@@ -204,10 +204,12 @@ const withIconImages: ConfigPlugin<PluginProps> = (
 						typeof icon.ios === "string" ? { light: icon.ios } : icon.ios;
 
 					// Generate the assets for each variant
-					for (const [variant, icon] of Object.entries(images)) {
+					for (const [variant, iconSrc] of Object.entries(images)) {
+						// ensure iconSrc is a string before passing to functions that expect string
+						const iconPath = String(iconSrc);
 						validateImagePath(
 							config.modRequest.projectRoot,
-							icon,
+							iconPath,
 							`${key}/${variant}`,
 							"ios",
 						);
@@ -224,7 +226,7 @@ const withIconImages: ConfigPlugin<PluginProps> = (
 							},
 							{
 								name: iconFileName,
-								src: icon,
+								src: iconPath,
 								removeTransparency: !isTransparent,
 								backgroundColor: isTransparent ? "transparent" : "#ffffff",
 								resizeMode: "cover",
@@ -409,7 +411,7 @@ const withIconAndroidManifest: ConfigPlugin<PluginProps> = (
 			return [
 				...config,
 				...iconNames.map((iconKey) => {
-					const iconProps = icons[iconKey];
+					const iconProps = icons[iconKey] ?? {};
 					const androidConfig = iconProps.android;
 					const safeIconKey = getSafeResourceName(iconKey);
 					let iconResourceName: string;

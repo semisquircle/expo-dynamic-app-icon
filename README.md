@@ -2,7 +2,7 @@
 
 ⭐ The **DEFINITIVE** dynamic app icon module for React Native Expo! ⭐\
 Programmatically change between bundled launcher icons on iOS and Android.\
-Expo SDK 53+ supported.
+Expo SDK 55+ supported.
 
 > [!WARNING]
 > This package contains native code and does not work in Expo Go. Use a development, preview, or production build.
