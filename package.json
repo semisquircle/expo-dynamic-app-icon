@@ -1,6 +1,6 @@
 {
   "name": "@semisquircle/expo-dynamic-app-icon",
-  "version": "58.0.1",
+  "version": "58.0.2",
   "description": "Programmatically change the app icon in Expo.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig.plugin.json",
     "build:watch": "expo-module build",
-    "prepare": "expo-module prepare",
+    "prepare": "expo-module prepare && npm run build",
     "clean": "expo-module clean && rm -rf app.plugin.js",
     "reset": "rm -rf package-lock.json node_modules",
     "expo-module": "expo-module"
